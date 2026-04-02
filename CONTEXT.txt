@@ -4,15 +4,15 @@ Portfolio project — Senior Data Engineering
 
 GOAL:
 Build a real-time transit telemetry pipeline for Capital Metro (Austin, TX) buses,
-from raw API ingestion through to a Grafana dashboard.
+from raw API ingestion through to a custom Next.js + deck.gl visualization layer.
 
 ------------------------------------------------------------
 STACK
 ------------------------------------------------------------
 Warehouse:      ClickHouse (columnar DB, Docker on WSL2)
 Orchestrator:   Dagster (asset-based pipeline, schedule every minute)
-Visualization:  Grafana (ClickHouse datasource plugin, port 3002)
-Language:       Python 3 (venv on WSL2)
+Visualization:  Next.js 14 app (replacing Grafana) — transit-map/
+Language:       Python 3 (venv on WSL2), TypeScript (Next.js)
 
 Data Source:    Capital Metro GTFS-Realtime feed (vehicle positions)
                 Texas Open Data Portal — JSON API, updates every ~15 seconds
@@ -20,6 +20,14 @@ Data Source:    Capital Metro GTFS-Realtime feed (vehicle positions)
 
 Static GTFS:    CapMetro static schedule ZIP
                 URL: https://data.texas.gov/download/r4v4-vz24/application%2Fzip
+
+------------------------------------------------------------
+PORTS
+------------------------------------------------------------
+Dagster UI:     http://localhost:3000
+Transit Map:    http://localhost:3001   (Next.js dev server)
+Grafana:        http://localhost:3002   (kept but replaced by transit-map)
+ClickHouse:     http://localhost:8123   (HTTP), 9000 (native)
 
 ------------------------------------------------------------
 PIPELINE ARCHITECTURE (Medallion / Lakehouse Pattern)
@@ -46,6 +54,8 @@ GOLD LAYER — gold_active_fleet (ClickHouse View)
   - Uses argMax() to get the latest ping per vehicle within the last 15 minutes
   - Enriches with: route_short_name, route_long_name, route_color, trip_headsign
   - Source tables: silver_telemetry, dim_routes, dim_trips
+  - NOTE: Column t.route_id must be referenced with backtick escaping in queries
+    because the view exposes it as "t.route_id" (CTE alias leak in ClickHouse)
 
 DIMENSIONS — static_gtfs_dimensions (separate Dagster job, manual trigger)
   - Downloads CapMetro static GTFS ZIP
@@ -78,21 +88,77 @@ clickhouse:   ports 8123 (HTTP), 9000 (native) | data persisted in ./ch_data
 grafana:      port 3002 | ClickHouse plugin installed | data in ./grafana_data
 
 ------------------------------------------------------------
+TRANSIT MAP — Next.js App (transit-map/)
+------------------------------------------------------------
+Framework:    Next.js 14, App Router, TypeScript
+Dev port:     3001 (changed from default 3000 to avoid Dagster conflict)
+Planned viz:  deck.gl animated bus map
+
+API Routes:
+  GET /api/fleet
+    - Queries gold_active_fleet directly via ClickHouse HTTP API (no SDK)
+    - Uses fetch() with X-ClickHouse-User / X-ClickHouse-Key headers
+    - Returns FleetVehicle[] as JSON (395 buses when pipeline is live)
+    - Credentials loaded from transit-map/.env.local (not committed)
+
+FleetVehicle shape:
+  vehicle_id, latitude, longitude, bearing, speed_kph, current_status,
+  last_seen_at, route_id, route_short_name, route_long_name, route_color,
+  trip_headsign
+
+.env.local (transit-map/):
+  CLICKHOUSE_URL=http://localhost:8123
+  CLICKHOUSE_USER=default
+  CLICKHOUSE_PASSWORD=vanguard_pass
+
+------------------------------------------------------------
 CURRENT STATUS
 ------------------------------------------------------------
-[X] Infrastructure:  Docker/WSL2 permissions stable
-[X] Bronze Layer:    Raw JSON snapshots landing via Dagster asset
-[X] Silver Layer:    JSON shredding + watermark incremental processing working
-[X] Dimensions:      GTFS static tables loading successfully
-[X] Gold View:       gold_active_fleet view defined with dimension joins
-[ ] Grafana:         Dashboard not yet built
-[ ] Dagster Schedule: Defined but not activated (running manually)
+[X] Infrastructure:       Docker/WSL2 permissions stable
+[X] Bronze Layer:         Raw JSON snapshots landing via Dagster asset
+[X] Silver Layer:         JSON shredding + watermark incremental processing working
+[X] Dimensions:           GTFS static tables loading successfully
+[X] Gold View:            gold_active_fleet returning 395 live buses
+[X] Next.js scaffold:     transit-map/ app created, port set to 3001
+[X] /api/fleet route:     Live ClickHouse query working, returns real fleet data
+[ ] deck.gl map:          Not yet built — Phase 2 next
+[ ] Dagster Schedule:     Defined but not activated (running manually)
 
-NEXT STEPS:
-1. Build Grafana dashboard consuming gold_active_fleet view
+------------------------------------------------------------
+CODE HISTORY / SESSION LOG
+------------------------------------------------------------
+
+[Session 1 — Repo Setup]
+  - Initialized git repo, created .gitignore (excluded .env, venv, grafana_data,
+    ch_data, __pycache__, .tmp_dagster_home*)
+  - Created GitHub repo: https://github.com/cuevam/austin-metro
+  - Initial commit: pipeline code, SQL schema, Dagster definitions, docker-compose
+  - Added CONTEXT.txt to document project state
+
+[Session 2 — transit-map Phase 1: Scaffold]
+  - Created branch: feat/transit-map (master stays as stable pipeline baseline)
+  - Scaffolded Next.js 14 app in transit-map/ (app router, TypeScript, no Tailwind)
+  - Created transit-map/app/api/fleet/route.ts with hardcoded FleetVehicle[] stub
+  - FleetVehicle interface designed to match gold_active_fleet schema exactly
+  - Changed dev port from 3000 → 3001 in package.json to avoid Dagster conflict
+
+[Session 2 — transit-map Phase 2: Live Data]
+  - Created transit-map/.env.local with ClickHouse credentials
+  - Rewrote /api/fleet route to query ClickHouse HTTP API directly via fetch()
+  - Debugged: gold_active_fleet exposes route_id as "t.route_id" (CTE alias leak)
+    Fix: reference column as \`t.route_id\` with escaped backticks in SQL string
+  - Confirmed: /api/fleet returns 395 live buses from gold_active_fleet
+  - Committed and pushed to feat/transit-map
+
+------------------------------------------------------------
+NEXT STEPS
+------------------------------------------------------------
+1. Phase 3: Build deck.gl map in transit-map/ rendering buses as animated icons
 2. Activate Dagster schedule for continuous ingestion
-3. Consider adding a dim_shapes layer for route path overlays on map
+3. Consider adding route path overlays using dim_shapes
 
 ------------------------------------------------------------
 REPO: https://github.com/cuevam/austin-metro
+BRANCH: feat/transit-map (active)
+MASTER: stable pipeline baseline — do not break
 ============================================================
