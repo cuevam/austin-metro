@@ -93,6 +93,12 @@ export default function FleetMap() {
     [vehicles, selectedRoute]
   );
 
+  const latestUpdate = useMemo(() => {
+    if (!vehicles.length) return null;
+    const ts = Math.max(...vehicles.map((v) => new Date(v.last_seen_at).getTime()));
+    return new Date(ts);
+  }, [vehicles]);
+
   const layers = [
     new PathLayer({
       id: "route-shape",
@@ -121,6 +127,10 @@ export default function FleetMap() {
       onHover: (info: PickingInfo) => {
         setHovered((info.object as FleetVehicle) ?? null);
         if (info.x !== undefined) setCursor({ x: info.x, y: info.y });
+      },
+      onClick: (info: PickingInfo) => {
+        const v = info.object as FleetVehicle;
+        if (v) setSelectedRoute((prev) => prev === v.route_short_name ? null : v.route_short_name);
       },
     }),
   ];
@@ -246,6 +256,25 @@ export default function FleetMap() {
         >
           <Map mapStyle={BASEMAP} />
         </DeckGL>
+
+        {latestUpdate && (
+          <div style={{
+            position: "absolute",
+            bottom: 16,
+            left: 16,
+            zIndex: 25,
+            fontFamily: "'Courier New', Courier, monospace",
+            fontSize: 11,
+            color: "#00ff41",
+            textShadow: "0 0 8px #00ff41, 0 0 2px #00ff41",
+            pointerEvents: "none",
+            lineHeight: 1.6,
+            letterSpacing: "0.05em",
+          }}>
+            <div style={{ color: "#00cc33", fontSize: 10, marginBottom: 1 }}>LAST UPDATE</div>
+            <div>{latestUpdate.toLocaleDateString()} {latestUpdate.toLocaleTimeString()}</div>
+          </div>
+        )}
 
         {hovered && (
           <div style={{

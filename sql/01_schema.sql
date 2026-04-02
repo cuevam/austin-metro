@@ -46,7 +46,6 @@ WITH latest_telemetry AS (
         argMax(current_status, vehicle_timestamp) AS current_status,
         max(vehicle_timestamp) AS last_seen_at
     FROM silver_telemetry
-    WHERE vehicle_timestamp >= now() - INTERVAL 15 MINUTE
     GROUP BY vehicle_id
 )
 -- Step 2: Enrich with Dimension Data
