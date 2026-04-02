@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # The Warehouse: High-performance columnar storage for telemetry
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: austin_metro_warehouse
+    user: "1000:1000"
+    # Standard ports for HTTP (8123) and Native (9000) connections
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    # Mapping your local folder to the container so data survives a restart
+    environment:
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=vanguard_pass
+    volumes:
+      - ./ch_data:/var/lib/clickhouse
+      - ./ch_logs:/var/log/clickhouse
+    # Resource limits to ensure ClickHouse stays stable in WSL
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Note: We will add the Dagster Orchestrator service here in Sprint 2 
+  # once we have verified our manual ingestion script works.
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: austin_metro_grafana
+    ports:
+      - "3002:3000"
+    environment:
+      - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource
+    volumes:
+      - ./grafana_data:/var/lib/grafana
+    depends_on:
+      - clickhouse

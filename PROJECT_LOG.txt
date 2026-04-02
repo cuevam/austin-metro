@@ -1,0 +1,63 @@
+============================================================
+PROJECT: AUSTIN-METRO (Transit Telemetry Pipeline)
+OBJECTIVE: Senior Data Engineering Portfolio Project
+ENV: WSL2 / VS Code / Docker / Python Venv
+============================================================
+
+[PHASE 1: EXTRACTION & LANDING (BRONZE)] - STATUS: SETUP
+------------------------------------------------------------
+[X] Project Naming & Directory Structure (/austin-metro)
+[X] Python Virtual Environment (venv) Active
+[ ] Docker Compose Initialization (ClickHouse)
+[ ] Bronze Table DDL (The "Source Folder")
+[ ] First "Raw JSON" Ingestion Test
+
+[PHASE 2: PROCESSING (SILVER)] - STATUS: PENDING
+------------------------------------------------------------
+[ ] SQL Materialized View for JSON Parsing
+[ ] Speed Unit Conversion (m/s to km/h)
+
+[PHASE 3: MODELING (GOLD)] - STATUS: PENDING
+------------------------------------------------------------
+[ ] Static Dimension Joins (GTFS CSVs)
+
+[PHASE 4: ORCHESTRATION & VIZ] - STATUS: PENDING
+------------------------------------------------------------
+[ ] Dagster Sensor Setup
+[ ] Grafana Dashboard Deployment
+
+NOTES:
+- Running in WSL2 for production-parity.
+- Using 'venv' for dependency isolation.
+============================================================
+
+============================================================
+PROJECT: AUSTIN-METRO | STATUS: SPRINT 1 COMPLETE ✅
+============================================================
+
+[WHERE WE STAND]
+------------------------------------------------------------
+[X] INFRASTRUCTURE: Docker/WSL permissions are stable.
+[X] BRONZE LAYER: Raw JSON snapshots landing every 15s.
+[X] PERSISTENCE: Data is safely stored in ./ch_data.
+
+[IMMEDIATE NEXT STEPS]
+------------------------------------------------------------
+1. SHRED: Verify the Materialized View is populating 
+   the 'silver_telemetry' table with clean columns.
+2. AUTOMATE: Initialize Dagster in the /austin-metro 
+   folder to replace the manual terminal script.
+3. ENRICH: Download the CapMetro Static GTFS ZIP file
+   to begin the 'Gold Layer' join (Routes & Stops).
+============================================================
+
+[PHASE 1: EXTRACTION (BRONZE)] - STATUS: DEBUGGED 🛠️
+------------------------------------------------------------
+[X] Fix: Resolved 'ScheduleDefinition' TypeError.
+[X] Pattern: Implemented Asset -> Job -> Schedule hierarchy.
+[X] Orchestrator: Dagster webserver now loading definitions.py correctly.
+
+[NEXT MOVE]
+------------------------------------------------------------
+> The First "Materialize": Run the asset from the UI and 
+  verify the green 'Success' checkmark.

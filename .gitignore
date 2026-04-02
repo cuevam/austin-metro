@@ -1,0 +1,9 @@
+.env
+venv/
+__pycache__/
+grafana_data/
+ch_data/
+ch_logs/
+.tmp_dagster_home*/
+*.pyc
+.vscode/
