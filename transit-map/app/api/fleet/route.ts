@@ -15,53 +15,59 @@ export interface FleetVehicle {
   trip_headsign: string;
 }
 
-// Hardcoded seed data — Phase 1 scaffold only.
-// Phase 2 will replace this with a live ClickHouse query against gold_active_fleet.
-const HARDCODED_FLEET: FleetVehicle[] = [
-  {
-    vehicle_id: "1001",
-    latitude: 30.2672,
-    longitude: -97.7431,
-    bearing: 45,
-    speed_kph: 32.5,
-    current_status: "IN_TRANSIT_TO",
-    last_seen_at: new Date().toISOString(),
-    route_id: "1",
-    route_short_name: "1",
-    route_long_name: "North Lamar/South Congress",
-    route_color: "E3151A",
-    trip_headsign: "North Lamar",
-  },
-  {
-    vehicle_id: "1002",
-    latitude: 30.2849,
-    longitude: -97.7341,
-    bearing: 180,
-    speed_kph: 0,
-    current_status: "STOPPED_AT",
-    last_seen_at: new Date().toISOString(),
-    route_id: "7",
-    route_short_name: "7",
-    route_long_name: "Duval/Dove Springs",
-    route_color: "0066CC",
-    trip_headsign: "Dove Springs",
-  },
-  {
-    vehicle_id: "1003",
-    latitude: 30.2541,
-    longitude: -97.7642,
-    bearing: 270,
-    speed_kph: 48.0,
-    current_status: "IN_TRANSIT_TO",
-    last_seen_at: new Date().toISOString(),
-    route_id: "10",
-    route_short_name: "10",
-    route_long_name: "West 7th Street",
-    route_color: "008000",
-    trip_headsign: "Westgate Transit Center",
-  },
-];
+const QUERY = `
+  SELECT
+    vehicle_id,
+    latitude,
+    longitude,
+    bearing,
+    speed_kph,
+    current_status,
+    toString(last_seen_at) AS last_seen_at,
+    ifNull(\`t.route_id\`, '') AS route_id,
+    ifNull(route_short_name, '')  AS route_short_name,
+    ifNull(route_long_name, '')   AS route_long_name,
+    ifNull(route_color, 'CCCCCC') AS route_color,
+    ifNull(trip_headsign, '')     AS trip_headsign
+  FROM gold_active_fleet
+  FORMAT JSONEachRow
+`;
 
 export async function GET() {
-  return NextResponse.json(HARDCODED_FLEET);
+  const url = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
+  const user = process.env.CLICKHOUSE_USER ?? "default";
+  const password = process.env.CLICKHOUSE_PASSWORD ?? "";
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "X-ClickHouse-User": user,
+        "X-ClickHouse-Key": password,
+        "Content-Type": "text/plain",
+      },
+      body: QUERY,
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err);
+    }
+
+    const text = await res.text();
+    const vehicles: FleetVehicle[] = text
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+
+    return NextResponse.json(vehicles);
+  } catch (err) {
+    console.error("[/api/fleet]", err);
+    return NextResponse.json(
+      { error: "Failed to query fleet data", detail: String(err) },
+      { status: 500 }
+    );
+  }
 }
