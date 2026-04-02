@@ -2,7 +2,7 @@ SELECT *
 FROM bronze_raw_json 
 ORDER BY ingested_at DESC;
 
-SELECT COUNT(*) FROM bronze_raw_json;
+SELECT * FROM bronze_raw_json;
 SELECT max(ingested_at), count(*) FROM bronze_raw_json;
 SELECT now();
 
@@ -58,7 +58,7 @@ FROM (
 
 
 SELECT COUNT(*) FROM dim_routes;
-SELECT COUNT(*) FROM dim_shapes;
+SELECT * FROM dim_shapes;
 SELECT COUNT(*) FROM dim_trips;
 SELECT COUNT(*) FROM dim_stops;
 
