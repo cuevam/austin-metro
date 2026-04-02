@@ -17,6 +17,7 @@ services:
     volumes:
       - ./ch_data:/var/lib/clickhouse
       - ./ch_logs:/var/log/clickhouse
+      - ./ch_config:/etc/clickhouse-server/config.d
     # Resource limits to ensure ClickHouse stays stable in WSL
     ulimits:
       nofile:

@@ -23,10 +23,12 @@ def static_gtfs_dimensions():
     client = get_ch_client()
 
     log.info("Preparing ClickHouse Dimension Tables...")
+    client.command("ALTER TABLE dim_trips ADD COLUMN IF NOT EXISTS shape_id String DEFAULT ''")
+
     tables = {
         "dim_routes": "CREATE TABLE IF NOT EXISTS dim_routes (route_id String, route_short_name String, route_long_name String, route_color String) ENGINE = MergeTree() ORDER BY route_id",
         "dim_stops": "CREATE TABLE IF NOT EXISTS dim_stops (stop_id String, stop_name String, stop_lat Float64, stop_lon Float64) ENGINE = MergeTree() ORDER BY stop_id",
-        "dim_trips": "CREATE TABLE IF NOT EXISTS dim_trips (trip_id String, route_id String, direction_id Int8, trip_headsign String) ENGINE = MergeTree() ORDER BY trip_id",
+        "dim_trips": "CREATE TABLE IF NOT EXISTS dim_trips (trip_id String, route_id String, direction_id Int8, trip_headsign String, shape_id String DEFAULT '') ENGINE = MergeTree() ORDER BY trip_id",
         "dim_shapes": "CREATE TABLE IF NOT EXISTS dim_shapes (shape_id String, shape_pt_lat Float64, shape_pt_lon Float64, shape_pt_sequence Int32) ENGINE = MergeTree() ORDER BY (shape_id, shape_pt_sequence)"
     }
 
@@ -51,8 +53,8 @@ def static_gtfs_dimensions():
         stops_data = process_file("stops.txt", lambda r: [r.get("stop_id", ""), r.get("stop_name", ""), float(r.get("stop_lat", 0.0)), float(r.get("stop_lon", 0.0))])
         client.insert("dim_stops", stops_data, column_names=["stop_id", "stop_name", "stop_lat", "stop_lon"])
         
-        trips_data = process_file("trips.txt", lambda r: [r.get("trip_id", ""), r.get("route_id", ""), int(r.get("direction_id", 0)), r.get("trip_headsign", "")])
-        client.insert("dim_trips", trips_data, column_names=["trip_id", "route_id", "direction_id", "trip_headsign"])
+        trips_data = process_file("trips.txt", lambda r: [r.get("trip_id", ""), r.get("route_id", ""), int(r.get("direction_id", 0)), r.get("trip_headsign", ""), r.get("shape_id", "")])
+        client.insert("dim_trips", trips_data, column_names=["trip_id", "route_id", "direction_id", "trip_headsign", "shape_id"])
         
         shapes_data = process_file("shapes.txt", lambda r: [r.get("shape_id", ""), float(r.get("shape_pt_lat", 0.0)), float(r.get("shape_pt_lon", 0.0)), int(r.get("shape_pt_sequence", 0))])
         client.insert("dim_shapes", shapes_data, column_names=["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"])
